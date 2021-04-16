@@ -73,117 +73,163 @@ public struct UF {
 }
 
 struct CompPipe {
+    var u: Int
     var v: Int
     var w: Int
     var act: Bool
 }
 
 extension CompPipe: Comparable {
-  public static func <(lhs: CompPipe, rhs: CompPipe) -> Bool {
-    return lhs.w < rhs.w
-  }
+    public static func <(lhs: CompPipe, rhs: CompPipe) -> Bool {
+        return lhs.w < rhs.w
+    }
 }
 
 extension CompPipe: Hashable {}
 
 
-//func startMCF(_ input: [String.SubSequence], _ ans:  String) -> Int {
+//func startMCF(_ input: [String.SubSequence]) -> Int {
 func startMCF() {
     
-        let firstLine = readLine()!.split(separator: " ")
-//        let firstLine = input[0].split(separator: " ")
+    let firstLine = readLine()!.split(separator: " ")
+    //    let firstLine = input[0].split(separator: " ")
+    
+    let n = Int(firstLine[0])!
+    let m = Int(firstLine[1])!
+    let d = Int(firstLine[2])!
+    
+    var pipes = [[(v: Int, w: Int, act: Bool)]](repeating: [], count: n + 1)
+    
+    for i in 0..<m {
         
-        let n = Int(firstLine[0])!
-        let m = Int(firstLine[1])!
-        let d = Int(firstLine[2])!
+        let pipe = readLine()!.split(separator: " ")
+        //        let pipe = input[1 + i].split(separator: " ")
         
-        var pipes = [[(v: Int, w: Int, act: Bool)]](repeating: [], count: n + 1)
+        let a = Int(pipe[0])!
+        let b = Int(pipe[1])!
+        let c = Int(pipe[2])!
         
-       
-        var pipe1 = [(u: Int, v: Int, w: Int, act: Bool)]()
-        
-        for i in 0..<m {
-            
-            let pipe = readLine()!.split(separator: " ")
-//            let pipe = input[1 + i].split(separator: " ")
-            
-            let a = Int(pipe[0])!
-            let b = Int(pipe[1])!
-            let c = Int(pipe[2])!
-            
-            var active = false
-            if i < n-1 {
-                active = true
-                if c - d <= 0 {
-                    pipe1.append((u: a, v: b, w: c, act: active))
-                }
-            }
-            
-            pipes[a].append((v: b, w: c, act: active))
-            
+        var active = false
+        if i < n-1 {
+            active = true
         }
         
-    //    var days = kruskalMST(pipes, n, m, d)
+        pipes[a].append((v: b, w: c, act: active))
         
-        let (days, _ ) = kruskalMST(pipes, n, m, d)
-        print(days)
-//    return days
+    }
+    
+    let days = kruskalMST(pipes, n, m, d)
+    print(days)
+    //    return days
 }
 
-public func kruskalMST(_ graph: [[(v: Int, w: Int, act: Bool)]], _ n: Int,_ m: Int,_ d: Int ) -> (Int, [(Int, Int, Int, Bool)])  {
-  var allEdges = [(u: Int, v: Int, w: Int, act: Bool)]()
-  var mstEdges = [(u: Int, v: Int, w: Int, act: Bool)]()
-  
-  for (u, node) in graph.enumerated() {
-    for edge in node {
-        allEdges.append((u: u, v: edge.v, w: edge.w, edge.act))
+public func kruskalMST(_ graph: [[(v: Int, w: Int, act: Bool)]], _ n: Int,_ m: Int,_ d: Int ) -> Int {
+    var allEdges = [(u: Int, v: Int, w: Int, act: Bool)]()
+    var mstEdges = [(u: Int, v: Int, w: Int, act: Bool)]()
+    
+    for (u, node) in graph.enumerated() {
+        for edge in node {
+            allEdges.append((u: u, v: edge.v, w: edge.w, edge.act))
+        }
     }
-  }
     
+    allEdges.sort { $0.w < $1.w || $0.w == $1.w && $0.act == true }
     
-  allEdges.sort { $0.w < $1.w || $0.w == $1.w && $0.act == true }
-  
-  var uf = UF(graph.count)
-  for edge in allEdges {
-    if uf.connected(edge.u, edge.v) { continue }
-    uf.union(edge.u, edge.v)
-    mstEdges.append(edge)
-  }
+    var uf = UF(graph.count)
+    for edge in allEdges {
+        if uf.connected(edge.u, edge.v) { continue }
+        uf.union(edge.u, edge.v)
+        mstEdges.append(edge)
+    }
     
     var largest = 0
     var index = 0
     var count = 0
+    var sumCosts = 0
     for p in mstEdges {
         if p.2 > largest {
             index = count
             largest = p.2
         }
         count += 1
+        sumCosts += p.w
     }
     
-    var largest2 = 0
-    var index2 = 0
-    var count2 = 0
-    for p in allEdges {
-        if p.act {
-            if p.w > largest2 {
-                index2 = count2
-                largest2 = p.w
-            }
-            count2 += 1
-        }
+    if mstEdges[index].w >= d {
+        sumCosts -= d
+    } else {
+        sumCosts -= mstEdges[index].w
     }
-
-    var num = mstEdges.map { $0.act == false ? 1 : 0 }.reduce(0, +)
+    
+    var dayReduction = 0
     
     if !mstEdges[index].act {
-        if allEdges[index2].w - d <= 0 {
-            num -= 1
+        
+        var edgeSkip = [CompPipe]()
+        edgeSkip.append(CompPipe(u: mstEdges[index].u, v: mstEdges[index].v, w: mstEdges[index].w, act: mstEdges[index].act))
+        
+        while m > ( mstEdges.count - 1 + edgeSkip.count ) {
+            
+            var mstEdges2 = [(u: Int, v: Int, w: Int, act: Bool)]()
+            var uf2 = UF(graph.count)
+            for edge in allEdges {
+                if uf2.connected(edge.u, edge.v) { continue }
+                if !edgeSkip.contains(CompPipe(u: edge.u, v: edge.v, w: edge.w, act: edge.act))  {
+                    uf2.union(edge.u, edge.v)
+                    mstEdges2.append(edge)
+                }
+            }
+            
+            if mstEdges.count == mstEdges2.count {
+                
+                var sumCosts2 = 0
+                var largest2 = 0
+                var index2 = 0
+                var count2 = 0
+                for p in mstEdges2 {
+                    if p.2 > largest2 {
+                        index2 = count2
+                        largest2 = p.2
+                    }
+                    count2 += 1
+                    sumCosts2 += p.w
+                }
+                
+                if mstEdges2[index2].act {
+                    
+                    if mstEdges2[index2].w >= d {
+                        sumCosts2 -= d
+                    } else {
+                        sumCosts2 -= mstEdges2[index2].w
+                    }
+                    
+                    if sumCosts == sumCosts2 {
+                        dayReduction = 1
+                        break
+                    } else {
+                        edgeSkip.append(CompPipe(u: mstEdges2[index2].u, v: mstEdges2[index2].v, w: mstEdges2[index2].w, act: mstEdges2[index2].act))
+                    }
+                    
+                } else {
+                    edgeSkip.append(CompPipe(u: mstEdges2[index2].u, v: mstEdges2[index2].v, w: mstEdges2[index2].w, act: mstEdges2[index2].act))
+                }
+                
+            } else {
+                break
+            }
+            
         }
+        
     }
     
-    return (num, mstEdges)
+    var num = mstEdges.map { $0.act == false ? 1 : 0 }.reduce(0, +)
+    
+    num -= dayReduction
+    
+    
+    return num
 }
+
 
 startMCF()
 
@@ -193,10 +239,6 @@ startMCF()
 //var countWrong = 0
 //let directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 //for i in 1...50 {
-//
-////    if i != 33 && i != 36 && i != 39 && i != 40 && i != 44 && i != 45 && i != 33 && i != 49 {
-////        continue
-////    }
 //
 //    let fileURLIn = URL(fileURLWithPath: "/Users/adrianogaiotto/Documents/WMAD/ClassFiles/Swift/AlgorithmsDataStructures/AlgorithmsDataStructures/Assignments/MCF/mcf/mcf.\(i).in", relativeTo: directoryURL)
 //
@@ -222,7 +264,7 @@ startMCF()
 //        print("Unable to read the file")
 //    }
 //
-//    let days = startMCF(input, String(result))
+//    let days = startMCF(input)
 //
 //    if Int(result)! == days {
 //        print("test \(i) - pass - \(days)")
